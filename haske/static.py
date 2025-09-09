@@ -49,6 +49,7 @@ class FrontendServer:
             self.directory / "dist",
             self.directory / "out",
             self.directory / "public",
+            self.directory / "out/_next/static",
         ]
     
     async def serve(self, path: str = "") -> Response:
@@ -130,6 +131,23 @@ class FrontendServer:
         
         return None
     
+    # def setup_middleware(self, app):
+    #     """
+    #     Setup frontend serving middleware for the app.
+        
+    #     Args:
+    #         app: Haske application instance
+    #     """
+    #     # Mount static filesgi
+    #     app.mount("/static", self.static_files, name="static")
+        
+    #     # Add catch-all route for SPA
+    #     if self.spa_mode:
+    #         @app.route("/{path:path}")
+    #         async def catch_all(request):
+    #             path = request.path_params.get("path", "")
+    #             return await self.serve(path)
+
     def setup_middleware(self, app):
         """
         Setup frontend serving middleware for the app.
@@ -137,15 +155,34 @@ class FrontendServer:
         Args:
             app: Haske application instance
         """
-        # Mount static files
-        app.mount("/static", self.static_files, name="static")
-        
-        # Add catch-all route for SPA
+
+        # Always mount the main build directory
+        if self.directory.exists():
+            app.mount("/", StaticFiles(directory=str(self.directory), html=True), name="frontend")
+
+        # Also check for common frontend subfolders
+        extra_static_paths = [
+            ("_next/static", str(self.directory / "_next" / "static")),  # Next.js
+            ("static", str(self.directory / "static")),                  # CRA/Vite
+            ("public", str(self.directory / "public")),                  # Next.js public
+            ("dist", str(self.directory / "dist")),                      # Vue/Angular builds
+            ("_next/static/css", str(self.directory / "_next" / "static" / "css")),                        # Svelte builds
+        ]
+
+        for mount_path, static_dir in extra_static_paths:
+            if Path(static_dir).exists():
+                app.mount(f"/{mount_path}", StaticFiles(directory=static_dir), name=mount_path)
+
+        # Add catch-all route for SPA fallback
         if self.spa_mode:
             @app.route("/{path:path}")
             async def catch_all(request):
-                path = request.get_path_param("path", "")
-                return await self.serve(path)
+                return await self.serve(request.path_params.get("path", ""))
+
+            @app.route("/")
+            async def index(request):
+                return await self.serve("")
+
 
 class FrontendDevelopmentServer:
     """
@@ -263,92 +300,238 @@ def create_frontend_config(framework: str = "react") -> Dict[str, Any]:
     
     return configs.get(framework, configs["react"])
 
+# class FrontendManager:
+#     """
+#     Comprehensive frontend management for Haske.
+    
+#     Handles both production builds and development servers.
+#     """
+    
+#     def __init__(self, app, config: Optional[Dict] = None):
+#         """
+#         Initialize frontend manager.
+        
+#         Args:
+#             app: Haske application
+#             config: Frontend configuration
+#         """
+#         self.app = app
+#         self.config = config or create_frontend_config()
+#         self.production_server = None
+#         self.development_server = None
+#         self.mode = "production"  # or "development"
+    
+#     def setup(self, mode: str = "production"):
+#         """
+#         Setup frontend serving based on mode.
+        
+#         Args:
+#             mode: "production" or "development"
+#         """
+#         self.mode = mode
+        
+#         if mode == "production":
+#             self._setup_production()
+#         else:
+#             self._setup_development()
+    
+#     def _setup_production(self):
+#         """Setup production frontend serving."""
+#         build_dir = self.config.get("build_dir", "./frontend/build")
+#         self.production_server = FrontendServer(
+#             directory=build_dir,
+#             index=self.config.get("index", "index.html"),
+#             spa_mode=True,
+#             development_mode=False
+#         )
+        
+#         # Setup static file serving
+#         static_dir = self.config.get("static_dir")
+#         if static_dir and Path(static_dir).exists():
+#             self.app.static("/static", static_dir)
+        
+#         # Setup SPA catch-all
+#         self.production_server.setup_middleware(self.app)
+    
+#     def _setup_development(self):
+#         """Setup development frontend proxy."""
+#         dev_server_url = self.config.get("dev_server", "http://localhost:3000")
+#         self.development_server = FrontendDevelopmentServer(
+#             dev_server_url=dev_server_url,
+#             enabled=True
+#         )
+        
+#         # Setup dev server proxy for all frontend routes
+#         @self.app.route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+#         async def dev_proxy(request):
+#             path = request.get_path_param("path", "")
+            
+#             # Don't proxy API routes to frontend dev server
+#             if path.startswith("api/") or path == "api":
+#                 # Let Haske handle API routes
+#                 return Response("API route not found", status_code=404)
+            
+#             # Proxy all other routes to frontend dev server
+#             return await self.development_server.proxy_request(request)
+    
+#     def get_frontend_url(self, path: str = "") -> str:
+#         """
+#         Get frontend URL for redirects or links.
+        
+#         Args:
+#             path: Frontend path
+            
+#         Returns:
+#             str: Full frontend URL
+#         """
+#         if self.mode == "production":
+#             return f"/{path.lstrip('/')}"
+#         else:
+#             dev_url = self.config.get("dev_server", "http://localhost:3000")
+#             return f"{dev_url}/{path.lstrip('/')}"
+
+
+import subprocess
+import signal
+import socket
+import os
+from pathlib import Path
+from typing import Dict, Optional
+from starlette.responses import Response
+
+# Helper: find free port
+def find_free_port():
+    """Find an available TCP port."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
 class FrontendManager:
     """
     Comprehensive frontend management for Haske.
     
-    Handles both production builds and development servers.
+    Handles both production builds and development servers
+    across any JS-based framework (React, Vue, Next.js, Svelte, etc.).
     """
-    
+
     def __init__(self, app, config: Optional[Dict] = None):
         """
         Initialize frontend manager.
-        
+
         Args:
             app: Haske application
             config: Frontend configuration
         """
         self.app = app
-        self.config = config or create_frontend_config()
+        self.config = config or {}
         self.production_server = None
         self.development_server = None
-        self.mode = "production"  # or "development"
-    
-    def setup(self, mode: str = "production"):
+        self.frontend_process = None
+        self.mode = "production"  # default
+        self.port = None
+        self.dev_server_url = None
+
+    def setup(self, mode: Optional[str] = None):
         """
         Setup frontend serving based on mode.
-        
+
         Args:
-            mode: "production" or "development"
+            mode: "production" or "development" (auto-detected if None)
         """
-        self.mode = mode
-        
-        if mode == "production":
+        # Mode detection
+        if mode:
+            self.mode = mode
+        else:
+            build_dir = os.path.join(
+                self.config.get("frontend_dir", "./frontend"),
+                self.config.get("build_subdir", "build"),
+            )
+            self.mode = "production" if Path(build_dir).exists() else "development"
+
+        # Assign a port for dev mode
+        if self.mode == "development":
+            self.port = find_free_port()
+            self.dev_server_url = f"http://localhost:{self.port}"
+
+        # Setup frontend
+        if self.mode == "production":
             self._setup_production()
         else:
             self._setup_development()
-    
+
     def _setup_production(self):
         """Setup production frontend serving."""
         build_dir = self.config.get("build_dir", "./frontend/build")
+        index_file = self.config.get("index", "index.html")
+
+        # Serve static frontend files
         self.production_server = FrontendServer(
             directory=build_dir,
-            index=self.config.get("index", "index.html"),
+            index=index_file,
             spa_mode=True,
-            development_mode=False
+            development_mode=False,
         )
-        
-        # Setup static file serving
+
         static_dir = self.config.get("static_dir")
         if static_dir and Path(static_dir).exists():
             self.app.static("/static", static_dir)
-        
-        # Setup SPA catch-all
+
+        # SPA catch-all middleware
         self.production_server.setup_middleware(self.app)
-    
-    def _setup_development(self):
-        """Setup development frontend proxy."""
-        dev_server_url = self.config.get("dev_server", "http://localhost:3000")
-        self.development_server = FrontendDevelopmentServer(
-            dev_server_url=dev_server_url,
-            enabled=True
-        )
-        
-        # Setup dev server proxy for all frontend routes
-        @self.app.route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-        async def dev_proxy(request):
-            path = request.get_path_param("path", "")
-            
-            # Don't proxy API routes to frontend dev server
-            if path.startswith("api/") or path == "api":
-                # Let Haske handle API routes
-                return Response("API route not found", status_code=404)
-            
-            # Proxy all other routes to frontend dev server
-            return await self.development_server.proxy_request(request)
-    
-    def get_frontend_url(self, path: str = "") -> str:
-        """
-        Get frontend URL for redirects or links.
-        
-        Args:
-            path: Frontend path
-            
-        Returns:
-            str: Full frontend URL
-        """
-        if self.mode == "production":
-            return f"/{path.lstrip('/')}"
-        else:
-            dev_url = self.config.get("dev_server", "http://localhost:3000")
-            return f"{dev_url}/{path.lstrip('/')}"
+
+
+import platform
+import shlex
+import shutil
+
+def _setup_development(self):
+    """Setup development frontend proxy with process spawning."""
+    cwd = self.config.get("frontend_dir", "./frontend")
+    npm_cmd = "npm.cmd" if platform.system() == "Windows" else "npm"
+    dev_cmd = [npm_cmd, "run", "dev"]
+    proc = subprocess.Popen(
+    "where npm",
+    shell=True,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True
+)
+    out, err = proc.communicate()
+
+    # Framework-specific commands
+    if self.config.get("dev_command"):
+        start_cmd = self.config["dev_command"] + ["--", "-p", str(self.port)]
+    else:
+        start_cmd = [npm_cmd, "run", "dev", "--", "-p", str(self.port)]
+
+    print(f"🚀 Starting frontend dev server: {' '.join(start_cmd)} in {cwd}")
+
+    # Detect OS
+    is_windows = platform.system().lower().startswith("win")
+
+    if is_windows:
+        # Use npm.cmd if available
+        npm_path = out.strip()
+        if npm_path is None:
+            raise RuntimeError("❌ npm not found. Make sure Node.js is installed and npm is in PATH.")
+
+        # Convert command list into string for shell=True
+        cmd = f'"{npm_path}" run dev -- -p {self.port}'
+        shell_flag = True
+    else:
+        # On Linux/macOS, pass list directly
+        cmd = start_cmd
+        shell_flag = False
+
+    self.frontend_process = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True,
+        env={**os.environ, **self.config.get("env", {})},
+        shell=shell_flag,
+    )

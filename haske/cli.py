@@ -15,6 +15,10 @@ from .app import Haske
 
 from .static import create_frontend_config, FrontendManager
 
+import json
+import typer
+import subprocess
+from pathlib import Path
 cli = typer.Typer()
 
 @cli.command()
@@ -41,7 +45,7 @@ def dev(
     uvicorn.run(module, host=host, port=port, reload=reload, workers=workers)
 
 @cli.command()
-def new(name: str, with_frontend: bool = True):
+def new(name: str):
     """
     Create a new Haske project.
     
@@ -52,6 +56,8 @@ def new(name: str, with_frontend: bool = True):
     Example:
         haske new my-project
     """
+
+    use_template = typer.confirm("Do you want to use HTML templates?", default=True)
     project_path = Path(name)
     if project_path.exists():
         typer.echo(f"Error: Directory '{name}' already exists")
@@ -59,13 +65,47 @@ def new(name: str, with_frontend: bool = True):
     
     # Create project structure
     project_path.mkdir()
-    (project_path / "app").mkdir()
-    (project_path / "static").mkdir()
-    (project_path / "templates").mkdir()
-    (project_path / "migrations").mkdir()
+    sample_html = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hello from Haske</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9fafb;
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            align-items: center;
+            justify-content: center;
+            color: #111827;
+        }
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #6366f1, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <h1>Hello from Haske 🚀</h1>
+</body>
+</html>
+"""
+
+    if use_template:
+        (project_path / "static").mkdir()
+        (project_path / "templates").mkdir()
+        (project_path / "templates" / "index.html").write_text(sample_html)
+    
     
     # Create main app file
-    app_content = '''
+    if not use_template:
+
+        app_content = '''
 from haske import Haske, Request, Response
 
 app = Haske(__name__)
@@ -77,7 +117,43 @@ async def homepage(request: Request):
 if __name__ == "__main__":
     app.run()
 '''
-    (project_path / "app" / "main.py").write_text(app_content)
+    else:
+        app_content = '''
+from haske import Haske, Request, Response
+from haske.templates import render_template_async
+
+app = Haske(__name__)
+
+@app.route("/")
+async def apiHome(request: Request):
+    return {"message": "Hello, Haske!"}
+
+@app.route("/index")
+async def homePage(request:Request):
+    return render_template_async("index.html")
+
+if __name__ == "__main__":
+    app.run()
+
+'''
+    
+    orm_content = '''
+    from haske.orm import Model, Column, Integer, String
+
+class User(Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+
+# Create
+new_user = User(name="Alice")
+db.session.add(new_user)
+db.session.commit()
+
+# Query
+user = User.query.filter_by(name="Alice").first()
+    '''
+    (project_path  / "app.py").write_text(app_content)
+    (project_path / "models.py").write_text(orm_content)
     
     # Create requirements.txt
     requirements = '''
@@ -175,41 +251,88 @@ def check():
     typer.echo("✓ Check complete")
 
 
+
+import typer
+import subprocess
+import shutil
+import sys
+from pathlib import Path
+
 @cli.command()
-def setup_frontend(
-    framework: str = typer.Option("react", help="Frontend framework: react, vue, nextjs, angular, svelte"),
-    mode: str = typer.Option("production", help="Mode: production or development"),
-    build_dir: str = typer.Option(None, help="Custom build directory"),
-    dev_server: str = typer.Option(None, help="Development server URL")
-):
+def setup_frontend():
     """
-    Setup frontend serving for Haske application.
+    Set up the frontend project interactively.
+    Cross-platform: checks for npx/npm explicitly and uses full paths on Windows.
     """
-    config = create_frontend_config(framework)
-    
-    if build_dir:
-        config["build_dir"] = build_dir
-    if dev_server:
-        config["dev_server"] = dev_server
-    
-    # Create or update app configuration
-    config_path = Path("haske.config.json")
-    if config_path.exists():
-        with open(config_path, "r") as f:
-            existing_config = json.load(f)
-    else:
-        existing_config = {}
-    
-    existing_config["frontend"] = config
-    existing_config["frontend_mode"] = mode
-    
-    with open(config_path, "w") as f:
-        json.dump(existing_config, f, indent=2)
-    
-    typer.echo(f"✓ Frontend setup for {framework} in {mode} mode")
-    typer.echo(f"Build directory: {config['build_dir']}")
-    if mode == "development":
-        typer.echo(f"Dev server: {config['dev_server']}")
+
+    typer.echo("\n🎨 Frontend Setup")
+
+    framework = typer.prompt(
+        "Which frontend framework do you want to use? (next, vite, angular)",
+        type=str
+    ).strip().lower()
+
+    framework_commands = {
+        "next": ["create-next-app@latest"],
+        "vite": ["create", "vite@latest"],
+        "angular": ["@angular/cli", "new"],
+    }
+
+    if framework not in framework_commands:
+        typer.echo(f"❌ Unsupported framework: {framework}")
+        raise typer.Exit(1)
+
+    project_name = typer.prompt("Enter the frontend project name").strip()
+    project_path = Path.cwd() / project_name
+
+    if project_path.exists():
+        typer.echo(f"⚠️ Project directory {project_path} already exists!")
+        overwrite = typer.confirm("Do you want to overwrite it?", default=False)
+        if not overwrite:
+            raise typer.Exit(1)
+
+    # Locate npx and npm
+    npx_cmd = shutil.which("npx")
+    npm_cmd = shutil.which("npm")
+
+    if sys.platform.startswith("win"):
+        # On Windows they are npx.cmd and npm.cmd
+        npx_cmd = shutil.which("npx.cmd") or npx_cmd
+        npm_cmd = shutil.which("npm.cmd") or npm_cmd
+
+    if not npx_cmd or not npm_cmd:
+        typer.echo("❌ Node.js not found! Please install Node.js from https://nodejs.org/")
+        raise typer.Exit(1)
+
+    typer.echo(f"\n🔍 Using npx: {npx_cmd}")
+    typer.echo(f"🔍 Using npm: {npm_cmd}")
+
+    typer.echo(f"\n🚀 Creating {framework} project in {project_path} ...")
+    typer.echo("👉 You will now interact directly with the framework’s CLI.\n")
+
+    # Build command
+    cmd = [npx_cmd] + framework_commands[framework] + [project_name]
+
+    try:
+        subprocess.run(cmd, cwd=Path.cwd(), check=True)
+    except subprocess.CalledProcessError as e:
+        typer.echo(f"❌ Error creating {framework} project (exit {e.returncode})")
+        raise typer.Exit(1)
+
+    typer.echo("\n📦 Installing dependencies ...")
+    try:
+        subprocess.run([npm_cmd, "install"], cwd=project_path, check=True)
+    except subprocess.CalledProcessError as e:
+        typer.echo(f"❌ Failed to install dependencies (exit {e.returncode})")
+        raise typer.Exit(1)
+
+    typer.echo(f"\n✅ Frontend setup complete at {project_path}")
+    if framework == "next":
+        typer.echo(f"   cd {project_name} && {npm_cmd} run dev")
+    elif framework == "vite":
+        typer.echo(f"   cd {project_name} && {npm_cmd} run dev")
+    elif framework == "angular":
+        typer.echo(f"   cd {project_name} && ng serve")
 
 @cli.command()
 def build_frontend(
