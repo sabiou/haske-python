@@ -1,0 +1,8 @@
+LICENSE
+README.md
+pyproject.toml
+src/haske.egg-info/PKG-INFO
+src/haske.egg-info/SOURCES.txt
+src/haske.egg-info/dependency_links.txt
+src/haske.egg-info/requires.txt
+src/haske.egg-info/top_level.txt

@@ -1,11 +1,11 @@
 [build-system]
 # Use a maturin range compatible with modern installations (you reported 1.9.4)
 requires = ["maturin>=1.0,<2.0", "setuptools", "wheel"]
-build-backend = "maturin"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "haske"
-version = "0.2.2"
+version = "0.2.11"
 description = "A high-performance Python web framework with Rust extensions"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -40,6 +40,7 @@ dependencies = [
   "httpx>=0.24.0",
   "itsdangerous>=2.1.0",
   "haske-core",
+  "watchdog",
 ]
 
 [project.optional-dependencies]
@@ -52,28 +53,12 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Python-Katsina/haske"
+Homepage = "https://github.com/Python-Katsina/haske-python"
 Documentation = "https://haske.readthedocs.io"
-Repository = "https://github.com/Python-Katsina/haske"
-Changelog = "https://github.com/Python-Katsina/haske/releases"
+Repository = "https://github.com/Python-Katsina/haske-python"
+Changelog = "https://github.com/Python-Katsina/haske-python/releases"
 
-[tool.maturin]
-# This MUST match the python-importable extension module name exported by the crate
-bindings = "pyo3"
-module-name = "_haske_core"
-manifest-path = "../haske-core/Cargo.toml"
-
-# Where your Python package lives (the python package that will be included in the wheel).
-# Adjust this to the folder that contains your Python package (package dir with __init__.py).
-
-python-source = "./haske"
-
-features = []
-rustc-args = ["-C", "target-cpu=native"]
-manylinux = "off"
-
-[tool.maturin.project]
-name = "haske"
-version = "0.2.2"
-description = "High-performance Python web framework with Rust extensions"
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["haske*"]
 

@@ -1,4 +1,3 @@
-# haske/app.py
 """
 Main application class for Haske web framework.
 
@@ -36,6 +35,9 @@ try:
 except Exception:
     HAS_RUST_ROUTER = False
 
+# Import templates configuration so we can sync dirs
+from . import templates as templates_module
+
 
 # --------------------------------------------------------------------------
 # Helper utilities
@@ -47,6 +49,7 @@ def find_free_port() -> int:
     port = s.getsockname()[1]
     s.close()
     return port
+
 
 def find_free_port_for_app(start_port: int) -> int:
     """Find the next available port starting from start_port."""
@@ -129,7 +132,7 @@ def create_reverse_proxy(
 
     return Starlette(routes=[
         Route("/{path:path}", endpoint=proxy_endpoint,
-              methods=["GET","POST","PUT","DELETE","PATCH","OPTIONS","HEAD"])
+              methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
     ])
 
 
@@ -141,13 +144,25 @@ class Haske:
     Main Haske application class with integrated frontend support.
     """
 
-    def __init__(self, name: str = "haske") -> None:
+    def __init__(
+        self,
+        name: str = "haske",
+        template_dir: str = "templates",
+        static_dir: str = "static",
+    ) -> None:
         self.name = name
         self.routes: List = []
         self.middleware_stack: List = []
         self.starlette_app: Optional[Starlette] = None
         self.start_time = time.time()
-        self.registered_routes = []
+        self.registered_routes: List[str] = []
+
+        # Template/static directories (user-configurable)
+        self.template_dir = template_dir or "templates"
+        self.static_dir = static_dir or "static"
+
+        # Ensure templates module knows about these directories
+        templates_module.configure_templates(self.template_dir, self.static_dir)
 
         # Rust router (optional)
         self._rust_router = RustRouter() if HAS_RUST_ROUTER else None
@@ -169,6 +184,12 @@ class Haske:
         )
         # THEN add other middleware
         self.middleware(GZipMiddleware, minimum_size=500)
+
+        # Auto-register default static mount (if directory exists)
+        try:
+            self.static(path="/static", directory=self.static_dir, name="static")
+        except Exception:
+            pass
 
     def cors(self, **kwargs):
         self.middleware(CORSMiddleware, **kwargs)
@@ -222,9 +243,6 @@ class Haske:
     # FRONTEND (production & development)
     # ---------------------------
     def setup_frontend(self, config: Optional[Dict] = None, mode: Optional[str] = None):
-        """
-        Configure frontend serving (production static OR development proxy).
-        """
         self._frontend_config = config or {}
         self._frontend_mode = (mode or self._frontend_config.get("mode") or "").lower() or None
 
@@ -349,8 +367,19 @@ class Haske:
     def mount(self, path: str, app: Any, name: str = None):
         self.routes.append(Mount(path, app=app, name=name))
 
-    def static(self, path: str = "/static", directory: str = "static", name: str = None):
-        self.routes.append(Mount(path, app=StaticFiles(directory=directory), name=name))
+    def static(self, path: str = "/static", directory: str = None, name: str = None):
+        directory = directory or self.static_dir
+        abs_path = os.path.abspath(directory)
+
+        if not os.path.isdir(abs_path):
+            print(f"[Haske] Static directory not found: {abs_path}. Skipping static mount.")
+            return
+
+        self.static_dir = abs_path
+        templates_module.configure_templates(self.template_dir, self.static_dir)
+
+        self.routes.append(Mount(path, app=StaticFiles(directory=abs_path), name=name or "static"))
+        print(f"[Haske] Serving static from: {abs_path} at {path}")
 
     # ---------------------------
     # RESPONSE HANDLING
@@ -447,8 +476,12 @@ class Haske:
         port = find_free_port_for_app(choosen_port)
 
         if choosen_port != port:
-            print(f"""⚠️ Port {choosen_port} not available. Using port {port} instead.\n
-            You can change this by adding your prefered port """)
+            print(f"[Haske] Port {choosen_port} not available. Using port {port} instead.")
+            print("You can change this by adding your preferred port")
+
+        # Prevent duplicate host/port kwargs
+        kwargs.pop("host", None)
+        kwargs.pop("port", None)
 
         if debug:
             frame = inspect.currentframe()
@@ -468,13 +501,7 @@ class Haske:
             try:
                 uvicorn.run(import_string, host=host, port=port, reload=True, log_level="debug", **kwargs)
             except Exception:
-                uvicorn.run(self, host=host, port=port+1, reload=True, log_level="debug", **kwargs)
+                uvicorn.run(self, host=host, port=port + 1, reload=True, log_level="debug", **kwargs)
         else:
-            try:
-                uvicorn.run(self, host=host, port=port, reload=debug, **kwargs)
-            except Exception:
-                uvicorn.run(self, host=host, port=port+1, reload=debug, **kwargs)
-
-
-
-
+            uvicorn.run(self, host=host, port=port, reload=debug, **kwargs)
+           
