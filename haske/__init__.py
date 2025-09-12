@@ -51,7 +51,7 @@ except ImportError:
             return match.groupdict()
         return None
 
-__version__ = "0.2.11"
+__version__ = "0.2.12"
 __all__ = [
     "Haske", "Request", "Response", "JSONResponse", "HTMLResponse", "RedirectResponse", 
     "StreamingResponse", "FileResponse", "APIResponse", "ok_response", "created_response", 
