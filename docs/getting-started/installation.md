@@ -1,11 +1,11 @@
 # Installation
 
-Haske targets Python 3.8 and newer. Installing the optional Rust toolchain unlocks accelerated routing, JSON parsing, template rendering, ORM helpers, and compression routines, but the framework gracefully falls back to pure Python implementations if the native extension is unavailable.【F:README.md†L46-L65】【F:haske/__init__.py†L3-L49】
+Haske targets Python 3.8 and newer. Installing the optional Rust toolchain unlocks accelerated routing, JSON parsing, template rendering, ORM helpers, and compression routines, but the framework gracefully falls back to pure Python implementations if the native extension is unavailable.
 
 ## 1. Prepare your environment
 
-1. Install Python 3.8+ and ensure `pip` is available on your PATH.【F:README.md†L46-L51】
-2. (Recommended) Install the Rust toolchain via [rustup](https://rustup.rs) so the `_haske_core` extension can be built from source.【F:README.md†L46-L51】
+1. Install Python 3.8+ and ensure `pip` is available on your PATH.
+2. (Recommended) Install the Rust toolchain via [rustup](https://rustup.rs) so the `_haske_core` extension can be built from source.
 3. Create and activate a virtual environment to isolate dependencies:
    ```bash
    python -m venv .venv
@@ -20,7 +20,7 @@ Install the latest published release with pip:
 pip install haske
 ```
 
-This command downloads the Python package and, when Rust is available, compiles the accompanying native extension for maximum performance.【F:README.md†L55-L57】
+This command downloads the Python package and, when Rust is available, compiles the accompanying native extension for maximum performance.
 
 ## 3. Install from source
 
@@ -32,7 +32,7 @@ cd haske-python
 python setup.py
 ```
 
-Running `setup.py` builds the Rust components and installs the package into your active environment.【F:README.md†L59-L65】
+Running `setup.py` builds the Rust components and installs the package into your active environment.
 
 ## 4. Verify the installation
 

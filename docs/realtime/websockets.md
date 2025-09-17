@@ -1,10 +1,10 @@
 # WebSockets
 
-Haske offers first-class WebSocket support with convenience decorators and a broadcasting subsystem accelerated by the Rust extension. The same application instance can host HTTP routes and WebSockets, letting you build live dashboards, chats, and collaborative tools without introducing a second server.【F:README.md†L299-L310】【F:haske/ws.py†L1-L600】
+Haske offers first-class WebSocket support with convenience decorators and a broadcasting subsystem accelerated by the Rust extension. The same application instance can host HTTP routes and WebSockets, letting you build live dashboards, chats, and collaborative tools without introducing a second server.
 
 ## Defining a WebSocket route
 
-Decorate an async function with `haske.ws.websocket_route`. The decorator registers a `WebSocketRoute`, wraps the underlying Starlette socket, and automatically tracks connections in the global broadcaster so you can broadcast later if needed.【F:haske/ws.py†L421-L443】
+Decorate an async function with `haske.ws.websocket_route`. The decorator registers a `WebSocketRoute`, wraps the underlying Starlette socket, and automatically tracks connections in the global broadcaster so you can broadcast later if needed.
 
 ```python
 from haske.ws import websocket_route
@@ -18,11 +18,11 @@ async def chat_socket(ws):
         await ws.send_text(f"You said: {message}")
 ```
 
-The wrapper exposes helpers such as `receive_json`, `send_json`, `ping`, `pong`, and, when the Rust extension is available, `receive_frame`/`send_frame` for fine-grained control over WebSocket frames.【F:haske/ws.py†L70-L257】
+The wrapper exposes helpers such as `receive_json`, `send_json`, `ping`, `pong`, and, when the Rust extension is available, `receive_frame`/`send_frame` for fine-grained control over WebSocket frames.
 
 ## Broadcasting messages
 
-Use the global `WebSocketBroadcaster` to fan messages out to all connections or specific channels. Messages can be strings, bytes, or dictionaries (which are automatically JSON-encoded). Channels allow you to group related sockets—for example, individual chat rooms.【F:haske/ws.py†L278-L398】
+Use the global `WebSocketBroadcaster` to fan messages out to all connections or specific channels. Messages can be strings, bytes, or dictionaries (which are automatically JSON-encoded). Channels allow you to group related sockets—for example, individual chat rooms.
 
 ```python
 from haske.ws import get_broadcaster
@@ -36,11 +36,11 @@ When Rust is enabled, broadcasting uses the native manager for improved throughp
 
 ## Advanced session management
 
-`LiveSessionManager` builds on the broadcaster to maintain a dictionary of active sessions keyed by ID. It provides helpers to add/remove sessions, push targeted messages, and broadcast to everyone. This is a great starting point for presence systems or collaborative editing flows.【F:haske/ws.py†L497-L599】
+`LiveSessionManager` builds on the broadcaster to maintain a dictionary of active sessions keyed by ID. It provides helpers to add/remove sessions, push targeted messages, and broadcast to everyone. This is a great starting point for presence systems or collaborative editing flows.
 
 ## Utilities
 
-- `websocket_handshake()` computes the Sec-WebSocket-Accept header, delegating to Rust when possible.【F:haske/ws.py†L446-L465】
-- `is_websocket_upgrade()` and `validate_websocket_request()` inspect HTTP headers to determine whether a request should be upgraded to a WebSocket connection.【F:haske/ws.py†L466-L496】
+- `websocket_handshake()` computes the Sec-WebSocket-Accept header, delegating to Rust when possible.
+- `is_websocket_upgrade()` and `validate_websocket_request()` inspect HTTP headers to determine whether a request should be upgraded to a WebSocket connection.
 
 Combine these pieces with Haske’s middleware and routing APIs to build rich real-time user experiences.
