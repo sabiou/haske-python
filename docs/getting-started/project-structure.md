@@ -1,6 +1,6 @@
 # Project Structure
 
-The `haske new` command scaffolds a ready-to-run application. Inspecting the generator reveals how Haske expects your files to be organised and which optional pieces you can safely remove or extend.【F:haske/cli.py†L39-L122】
+The `haske new` command scaffolds a ready-to-run application. Inspecting the generator reveals how Haske expects your files to be organised and which optional pieces you can safely remove or extend.
 
 ```
 my-project/
@@ -15,10 +15,10 @@ my-project/
 
 ### Key files
 
-- **`app.py`** – Instantiates `Haske`, registers routes, and calls `app.run()`. The template includes JSON and HTML handlers so you can see both response styles.【F:haske/cli.py†L73-L118】
-- **`models.py`** – Demonstrates how to define ORM models using the helpers from `haske.orm`. Replace this with your real database layer when ready.【F:haske/cli.py†L120-L130】
-- **`static/` & `templates/`** – Created only if you opt into template support during scaffolding. They work with the templating utilities documented later on.【F:haske/cli.py†L65-L72】
-- **`.env`** – Seeded with a debug flag and SQLite connection string so you can run the app without additional configuration.【F:haske/cli.py†L132-L141】
+- **`app.py`** – Instantiates `Haske`, registers routes, and calls `app.run()`. The template includes JSON and HTML handlers so you can see both response styles.
+- **`models.py`** – Demonstrates how to define ORM models using the helpers from `haske.orm`. Replace this with your real database layer when ready.
+- **`static/` & `templates/`** – Created only if you opt into template support during scaffolding. They work with the templating utilities documented later on.
+- **`.env`** – Seeded with a debug flag and SQLite connection string so you can run the app without additional configuration.
 
 ### Extending the layout
 

@@ -17,7 +17,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, reload=True)
 ```
 
-This is the minimal asynchronous application shown in the README. It imports the core `Haske` class, declares a single route, and starts the development server with live reload enabled.【F:README.md†L69-L93】
+This is the minimal asynchronous application shown in the README. It imports the core `Haske` class, declares a single route, and starts the development server with live reload enabled.
 
 ## 2. Run the development server
 
@@ -33,11 +33,11 @@ Alternatively, use the CLI runner to automatically locate your application modul
 haske dev --module app:app --host 0.0.0.0 --port 8000
 ```
 
-The CLI wraps Uvicorn and exposes flags for host, port, reload, and worker count, mirroring the options available in the Python entrypoint.【F:haske/cli.py†L19-L56】
+The CLI wraps Uvicorn and exposes flags for host, port, reload, and worker count, mirroring the options available in the Python entrypoint.
 
 ## 3. Iterate with auto-reload
 
-When `reload=True`, Haske watches your source files. Edits trigger a restart, so new routes or templates appear immediately.【F:README.md†L82-L90】【F:haske/app.py†L598-L624】
+When `reload=True`, Haske watches your source files. Edits trigger a restart, so new routes or templates appear immediately.
 
 ## 4. Add another endpoint
 
@@ -49,6 +49,6 @@ async def greet_user(request: Request, username: str):
     return {"message": f"Hello {username}"}
 ```
 
-Haske automatically parses the `{username}` parameter and passes it into your handler.【F:README.md†L96-L112】
+Haske automatically parses the `{username}` parameter and passes it into your handler.
 
 That is all you need to start building! Continue to the next section for a look at the default project structure and how to organise larger applications.

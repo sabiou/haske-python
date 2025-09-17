@@ -5,8 +5,8 @@ Welcome to the official documentation for the **Haske web framework**. Haske pai
 ## Why Haske?
 
 - **Productive APIs** inspired by Flask and FastAPI for routing, requests, and responses.
-- **Performance-first architecture** powered by optional Rust extensions that accelerate routing, JSON parsing, template rendering, ORM operations, and more.【F:haske/__init__.py†L3-L49】
-- **Batteries included**: templating, sessions, ORM helpers, CLI tooling, WebSockets, admin scaffolding, and frontend integration ship out of the box.【F:haske/__init__.py†L5-L48】【F:haske/app.py†L186-L207】【F:haske/cli.py†L1-L107】
+- **Performance-first architecture** powered by optional Rust extensions that accelerate routing, JSON parsing, template rendering, ORM operations, and more.
+- **Batteries included**: templating, sessions, ORM helpers, CLI tooling, WebSockets, admin scaffolding, and frontend integration ship out of the box.
 
 ## How the GitBook is organised
 
