@@ -39,7 +39,6 @@ Running `setup.py` builds the Rust components and installs the package into your
 After installation, you can confirm everything is wired correctly by importing the framework and printing its version:
 
 ```python
-python - <<'PY'
 from haske import Haske, __version__
 print("Haske", __version__)
 PY
