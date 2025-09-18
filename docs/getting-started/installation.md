@@ -41,7 +41,6 @@ After installation, you can confirm everything is wired correctly by importing t
 ```python
 from haske import Haske, __version__
 print("Haske", __version__)
-PY
 ```
 
 If you see the version number, you are ready to create your first Haske app.
