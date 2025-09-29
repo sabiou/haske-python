@@ -107,7 +107,8 @@ async def say_hello(request: Request):
 ### Path Parameters
 ```python
 @app.route("/user/{username}")
-async def greet_user(request: Request, username: str):
+async def greet_user(request: Request):
+    username = request.path_params.get("username")
     return {"message": f"Hello {username}"}
 ```
 
@@ -115,7 +116,7 @@ async def greet_user(request: Request, username: str):
 ```python
 @app.route("/search")
 async def search(request: Request):
-    query = request.query.get("q", "none")
+    query = request.query_params.get("q", None)
     return {"search_for": query}
 ```
 
